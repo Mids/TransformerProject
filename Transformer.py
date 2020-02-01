@@ -4,6 +4,7 @@ import numpy as np
 
 # Global variables for configuration
 encoder_vocab_length = 10000  # TODO: Temp vocab data length
+decoder_vocab_length = 10000  # TODO: Temp vocab data length
 encoder_sequence_length = 256
 decoder_sequence_length = 256
 layer_length = 6
@@ -31,6 +32,13 @@ def get_attention_pad_mask(q, k):
 	batch_size, k_length = k.size()
 	attention_pad_mask = k.data.eq(0).unsqeeze(1).expand(batch_size, q_length, k_length)
 	return attention_pad_mask
+
+
+def get_attention_decoder_mask(inputs):
+	pad_mask = get_attention_pad_mask(inputs, inputs)
+	decoder_mask = torch.ones_like(inputs).unsqueeze(-1).expand(inputs.size(0), inputs.size(1), inputs.size(1)).triu(1)
+	decoder_self_attention_mask = torch.gt((pad_mask + decoder_mask), 0)
+	return decoder_self_attention_mask
 
 
 class ScaledDotProductAttention(nn.Module):
@@ -156,26 +164,51 @@ class Encoder(nn.Module):
 		# Encoder Layer loop n times
 		outputs = self.input_embedding(inputs) + self.position_encoding(positions)
 		attention_mask = get_attention_pad_mask(inputs, inputs)  # Q, K, and V is identical in encoder
-		attention_probabilities = []
 
 		for layer in self.layers:
-			outputs, probability = layer(outputs, attention_mask)  # The output of the layer is new input.
-			attention_probabilities.append(probability)
+			outputs = layer(outputs, attention_mask)  # The output of the layer is new input.
 
-		return attention_probabilities
+		return outputs
+
+
+class DecoderLayer(nn.Module):
+	def __init__(self):
+		super().__init__()
+
+	def forward(self, decoder_inputs, encoder_outputs, masked_attention_mask, encoder_attention_mask):
+		# Masked Multi-Head Attention
+		# Add inputs & Norm
+		# Multi-Head Attention with Key and Value of encoder
+		# Add inputs & Norm
+		# Feed Forward
+		# Add inputs & Norm
+		pass
 
 
 class Decoder(nn.Module):
 	def __init__(self):
 		super().__init__()
+		self.decoder_embedding = nn.Embedding(decoder_vocab_length, hidden_depth)
+		sinusoid_table = get_sinusoid_table(decoder_sequence_length + 1)
+		self.position_encoding = nn.Embedding.from_pretrained(sinusoid_table, freeze=True)
+		self.layers = nn.ModuleList([DecoderLayer() for _ in range(layer_length)])
 
-	def forward(self, inputs, encoder_self_attention_probabilities):
-		# Output Embedding
-		# Positional Encoding
+	def forward(self, decoder_inputs, encoder_inputs, encoder_outputs):
+		# Masking for Positional Encoding
+		positions = torch.arange(decoder_inputs.size(1), device=decoder_inputs.device, dtype=decoder_inputs.dtype) \
+			            .expand(decoder_inputs.size(0), decoder_inputs.size(1)).contiguous() + 1
+		position_mask = decoder_inputs.eq(0)
+		positions.masked_fill_(position_mask, 0)
+
 		# Decoder Layer loop n times
-		# Linear
-		# SoftMax
-		pass
+		decoder_outputs = self.decoder_embedding(decoder_inputs) + self.position_encoding(positions)
+		self_attention_mask = get_attention_decoder_mask(decoder_inputs)
+		encoder_attention_mask = get_attention_pad_mask(decoder_inputs, encoder_inputs)
+
+		for layer in self.layers:
+			decoder_outputs = layer(decoder_outputs, encoder_outputs, self_attention_mask, encoder_attention_mask)
+
+		return decoder_outputs
 
 
 class Transformer(nn.Module):
@@ -185,6 +218,8 @@ class Transformer(nn.Module):
 		self.decoder = Decoder()
 
 	def forward(self, encoder_inputs, decoder_inputs):
-		encoder_self_attention_probabilities = self.encoder(encoder_inputs)
-		decoder_outputs = self.decoder(decoder_inputs, encoder_self_attention_probabilities)
+		encoder_outputs = self.encoder(encoder_inputs)
+		decoder_outputs = self.decoder(decoder_inputs, encoder_inputs, encoder_outputs)
+		# Linear
+		# SoftMax
 		return decoder_outputs
