@@ -174,15 +174,34 @@ class Encoder(nn.Module):
 class DecoderLayer(nn.Module):
 	def __init__(self):
 		super().__init__()
+		self.self_attention = MultiHeadAttention()
+		self.norm1 = nn.LayerNorm(hidden_depth, eps=1e-6)
+		self.encoder_attention = MultiHeadAttention()
+		self.norm2 = nn.LayerNorm(hidden_depth, eps=1e-6)
+		self.feed_forward = PositionWiseFeedForwardNetwork()
+		self.norm3 = nn.LayerNorm(hidden_depth, eps=1e-6)
 
-	def forward(self, decoder_inputs, encoder_outputs, masked_attention_mask, encoder_attention_mask):
+	def forward(self, inputs, encoder_outputs, self_attention_mask, encoder_attention_mask):
 		# Masked Multi-Head Attention
+		self_attention_outputs = self.self_attention(inputs, inputs, inputs, self_attention_mask)
+
 		# Add inputs & Norm
+		self_attention_outputs = self.norm1(inputs + self_attention_outputs)
+
 		# Multi-Head Attention with Key and Value of encoder
+		encoder_attention_outputs = \
+			self.encoder_attention(self_attention_outputs, encoder_outputs, encoder_outputs, encoder_attention_mask)
+
 		# Add inputs & Norm
+		encoder_attention_outputs = self.norm2(self_attention_outputs + encoder_attention_outputs)
+
 		# Feed Forward
+		feed_forward_outputs = self.feed_forward(encoder_attention_outputs)
+
 		# Add inputs & Norm
-		pass
+		feed_forward_outputs = self.norm3(encoder_attention_outputs + feed_forward_outputs)
+
+		return feed_forward_outputs
 
 
 class Decoder(nn.Module):
