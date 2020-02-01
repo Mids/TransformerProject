@@ -10,6 +10,7 @@ layer_length = 6
 head_length = 4
 head_depth = 64
 hidden_depth = head_length * head_depth  # 256
+feed_forward_depth = hidden_depth * 4  # 1024
 
 
 def get_sinusoid_table(sequence_length):
@@ -40,11 +41,21 @@ class ScaledDotProductAttention(nn.Module):
 
 	def forward(self, q, k, v, mask):
 		# MatMul
+		outputs = torch.matmul(q, k.transpose(-1, -2))
+
 		# Scale
+		outputs = torch.mul(outputs, self.scale)
+
 		# Mask
+		outputs.masked_fill_(mask, -1e9)
+
 		# SoftMax
+		outputs = nn.Softmax(dim=-1)(outputs)
+		outputs = self.dropout(outputs)
+
 		# MatMul
-		pass
+		context = torch.matmul(outputs, v)
+		return context, outputs
 
 
 class MultiHeadAttention(nn.Module):
@@ -80,12 +91,27 @@ class MultiHeadAttention(nn.Module):
 		return output, attention_probability
 
 
-class FeedForward(nn.Module):
+class PositionWiseFeedForwardNetwork(nn.Module):
 	def __init__(self):
 		super().__init__()
+		self.conv1 = nn.Conv1d(hidden_depth, feed_forward_depth, 1)
+		self.conv2 = nn.Conv1d(feed_forward_depth, hidden_depth, 1)
+		self.activate = nn.functional.relu  # Other activations like GELU has better performance, but the paper uses ReLU
+		self.dropout = nn.Dropout(0.1)
 
 	def forward(self, inputs):
-		pass
+		# Conv
+		output = self.conv1(inputs.transpose(1,2))
+
+		# Activate
+		output = self.activate(output)
+
+		# Conv
+		output = self.conv2(output)
+
+		# Dropout
+		output = self.dropout(output)
+		return output
 
 
 class EncoderLayer(nn.Module):
@@ -93,7 +119,7 @@ class EncoderLayer(nn.Module):
 		super().__init__()
 		self.attention = MultiHeadAttention()
 		self.norm1 = nn.LayerNorm(hidden_depth, eps=1e-6)
-		self.feed_forward = FeedForward()
+		self.feed_forward = PositionWiseFeedForwardNetwork()
 		self.norm2 = nn.LayerNorm(hidden_depth, eps=1e-6)
 
 	def forward(self, inputs, mask):
