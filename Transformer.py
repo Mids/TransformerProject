@@ -30,12 +30,44 @@ def get_attention_pad_mask(q, k):
 	return attention_pad_mask
 
 
-class EncoderLayer(nn.Module):
+class MultiHeadAttention(nn.Module):
 	def __init__(self):
 		super().__init__()
 
-	def forward(self):
+	def forward(self, q, k, v, mask):
 		pass
+
+
+class FeedForward(nn.Module):
+	def __init__(self):
+		super().__init__()
+
+	def forward(self, inputs):
+		pass
+
+
+class EncoderLayer(nn.Module):
+	def __init__(self):
+		super().__init__()
+		self.attention = MultiHeadAttention()
+		self.norm1 = nn.LayerNorm(hidden_depth, eps=1e-6)
+		self.feed_forward = FeedForward()
+		self.norm2 = nn.LayerNorm(hidden_depth, eps=1e-6)
+
+	def forward(self, inputs, mask):
+		# Multi-Head Attention
+		attention_outputs, attention_probability = self.attention(inputs, inputs, inputs, mask)  # Q == K == V
+
+		# Add inputs & Norm
+		attention_outputs = self.norm1(inputs + attention_outputs)
+
+		# Feed Forward
+		feed_forward_outputs = self.feed_forward(attention_outputs)
+
+		# Add inputs & Norm
+		feed_forward_outputs = self.norm2(attention_outputs + feed_forward_outputs)
+
+		return feed_forward_outputs
 
 
 class Encoder(nn.Module):
