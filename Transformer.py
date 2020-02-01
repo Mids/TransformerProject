@@ -12,6 +12,7 @@ head_length = 4
 head_depth = 64
 hidden_depth = head_length * head_depth  # 256
 feed_forward_depth = hidden_depth * 4  # 1024
+output_length = 2
 
 
 def get_sinusoid_table(sequence_length):
@@ -235,10 +236,11 @@ class Transformer(nn.Module):
 		super().__init__()
 		self.encoder = Encoder()
 		self.decoder = Decoder()
+		self.linear = nn.Linear(hidden_depth, output_length, False)
 
 	def forward(self, encoder_inputs, decoder_inputs):
 		encoder_outputs = self.encoder(encoder_inputs)
 		decoder_outputs = self.decoder(decoder_inputs, encoder_inputs, encoder_outputs)
-		# Linear
-		# SoftMax
-		return decoder_outputs
+		decoder_outputs, _ = torch.max(decoder_outputs, dim=1)
+		logits = self.linear(decoder_outputs)
+		return logits
