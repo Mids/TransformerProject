@@ -13,7 +13,7 @@ class Decoder(nn.Module):
 	def __init__(self):
 		super().__init__()
 
-	def forward(self, inputs, ):
+	def forward(self, inputs, encoder_self_attention_probabilities):
 		pass
 
 
@@ -25,5 +25,5 @@ class Transformer(nn.Module):
 
 	def forward(self, encoder_inputs, decoder_inputs):
 		encoder_self_attention_probabilities = self.encoder(encoder_inputs)
-		decoder_outputs = self.decoder(encoder_self_attention_probabilities, decoder_inputs)
+		decoder_outputs = self.decoder(decoder_inputs, encoder_self_attention_probabilities)
 		return decoder_outputs
