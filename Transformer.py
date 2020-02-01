@@ -6,6 +6,9 @@ class Encoder(nn.Module):
 		super().__init__()
 
 	def forward(self, inputs):
+		# Input Embeding
+		# Positional Encoding
+		# Encoder Layer loop n times
 		pass
 
 
@@ -14,6 +17,11 @@ class Decoder(nn.Module):
 		super().__init__()
 
 	def forward(self, inputs, encoder_self_attention_probabilities):
+		# Output Embedding
+		# Positional Encoding
+		# Decoder Layer loop n times
+		# Linear
+		# Softmax
 		pass
 
 
