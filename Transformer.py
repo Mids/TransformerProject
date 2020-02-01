@@ -6,16 +6,18 @@ import numpy as np
 input_vocab_length = 10000  # TODO: Temp vocab data length
 encoder_sequence_length = 256
 decoder_sequence_length = 256
-hidden_depth = 256
 layer_length = 6
+head_length = 4
+head_depth = 64
+hidden_depth = head_length * head_depth  # 256
 
 
 def get_sinusoid_table(sequence_length):
-	def cal_angle(position, i):
+	def calculate_angle(position, i):
 		return position / np.power(10000, 2 * (i // 2) / hidden_depth)
 
 	def get_position_angle_vector(position):
-		return [cal_angle(position, i) for i in range(hidden_depth)]
+		return [calculate_angle(position, i) for i in range(hidden_depth)]
 
 	sinusoid_table = np.array([get_position_angle_vector(i) for i in range(sequence_length)])
 	sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])  # put sine values at even indexes
@@ -30,12 +32,52 @@ def get_attention_pad_mask(q, k):
 	return attention_pad_mask
 
 
+class ScaledDotProductAttention(nn.Module):
+	def __init__(self):
+		super().__init__()
+		self.dropout = nn.Dropout(0.1)
+		self.scale = 1 / (head_length ** 0.5)
+
+	def forward(self, q, k, v, mask):
+		# MatMul
+		# Scale
+		# Mask
+		# SoftMax
+		# MatMul
+		pass
+
+
 class MultiHeadAttention(nn.Module):
 	def __init__(self):
 		super().__init__()
+		self.q_w = nn.Linear(hidden_depth, hidden_depth)
+		self.k_w = nn.Linear(hidden_depth, hidden_depth)
+		self.v_w = nn.Linear(hidden_depth, hidden_depth)
+		self.scaled_dot_product_attention = ScaledDotProductAttention()
+		self.linear = nn.Linear(hidden_depth, hidden_depth)
+		self.dropout = nn.Dropout(0.1)
 
 	def forward(self, q, k, v, mask):
-		pass
+		# Linear
+		batch_size = q.size(0)
+		q_sequence = self.q_w(q).view(batch_size, -1, head_length, head_depth).transpose(1, 2)
+		k_sequence = self.k_w(k).view(batch_size, -1, head_length, head_depth).transpose(1, 2)
+		v_sequence = self.v_w(v).view(batch_size, -1, head_length, head_depth).transpose(1, 2)
+		mask = mask.unsqeeze(1).repeat(1, head_length, 1, 1)
+
+		# Attention
+		context, attention_probability = self.scaled_dot_product_attention(q_sequence, k_sequence, v_sequence, mask)
+
+		# Concat
+		context = context.transpose(1, 2).contigous().view(batch_size, -1, hidden_depth)
+
+		# Linear
+		output = self.linear(context)
+
+		# Dropout
+		output = self.dropout(output)
+
+		return output
 
 
 class FeedForward(nn.Module):
@@ -106,7 +148,7 @@ class Decoder(nn.Module):
 		# Positional Encoding
 		# Decoder Layer loop n times
 		# Linear
-		# Softmax
+		# SoftMax
 		pass
 
 
