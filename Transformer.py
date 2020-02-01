@@ -77,7 +77,7 @@ class MultiHeadAttention(nn.Module):
 		# Dropout
 		output = self.dropout(output)
 
-		return output
+		return output, attention_probability
 
 
 class FeedForward(nn.Module):
