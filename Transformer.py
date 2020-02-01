@@ -3,7 +3,7 @@ import torch
 import numpy as np
 
 # Global variables for configuration
-input_vocab_length = 10000  # TODO: Temp vocab data length
+encoder_vocab_length = 10000  # TODO: Temp vocab data length
 encoder_sequence_length = 256
 decoder_sequence_length = 256
 layer_length = 6
@@ -101,7 +101,7 @@ class PositionWiseFeedForwardNetwork(nn.Module):
 
 	def forward(self, inputs):
 		# Conv
-		output = self.conv1(inputs.transpose(1,2))
+		output = self.conv1(inputs.transpose(1, 2))
 
 		# Activate
 		output = self.activate(output)
@@ -141,8 +141,8 @@ class EncoderLayer(nn.Module):
 class Encoder(nn.Module):
 	def __init__(self):
 		super().__init__()
-		self.input_embedding = nn.Embedding(input_vocab_length, hidden_depth)
-		sinusoid_table = get_sinusoid_table(encoder_sequence_length)
+		self.input_embedding = nn.Embedding(encoder_vocab_length, hidden_depth)
+		sinusoid_table = get_sinusoid_table(encoder_sequence_length + 1)
 		self.position_encoding = nn.Embedding.from_pretrained(sinusoid_table, freeze=True)
 		self.layers = nn.ModuleList([EncoderLayer() for _ in range(layer_length)])
 
